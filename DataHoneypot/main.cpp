@@ -83,7 +83,7 @@ void routine() {
 
 //https://learn.microsoft.com/en-us/windows/win32/api/psapi/nf-psapi-queryworkingsetex could be used instead. To check valid bit. Much more relaible.
 // But i started with this approch i might update this with queryworkingsetex intead.
-// 
+// LdrRegisterDllNotification
 //How to detect all cs2 anti cheats 101
 void main() {
 

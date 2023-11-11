@@ -8,8 +8,9 @@
 #include <libloaderapi.h>
 #pragma comment(lib,"ntdll.lib")
 
+DWORD thread_id = 0;
 
-void DoSuspendThread(DWORD targetProcessId, DWORD targetThreadId, BOOL suspend) {
+void suspendThread(DWORD targetProcessId, DWORD targetThreadId, BOOL suspend) {
 	HANDLE h = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
 	if (h != INVALID_HANDLE_VALUE) {
 		THREADENTRY32 te;
@@ -19,7 +20,7 @@ void DoSuspendThread(DWORD targetProcessId, DWORD targetThreadId, BOOL suspend) 
 				if (te.dwSize >= FIELD_OFFSET(THREADENTRY32, th32OwnerProcessID) + sizeof(te.th32OwnerProcessID)) {
 					if (te.th32ThreadID != targetThreadId && te.th32OwnerProcessID == targetProcessId) {
 						HANDLE thread = OpenThread(THREAD_ALL_ACCESS, FALSE, te.th32ThreadID);
-						if (thread != NULL) {
+						if (thread) {
 							if (suspend) SuspendThread(thread);
 							else ResumeThread(thread);
 							CloseHandle(thread);
@@ -32,60 +33,55 @@ void DoSuspendThread(DWORD targetProcessId, DWORD targetThreadId, BOOL suspend) 
 		CloseHandle(h);
 	}
 }
-DWORD thread_id = 0;
+
+bool isVAReadable(PVOID virtualAddress) {
+	PSAPI_WORKING_SET_EX_INFORMATION w = { 0 };
+	w.VirtualAddress = virtualAddress;
+	K32QueryWorkingSetEx(GetCurrentProcess(), &w, sizeof(w));
+
+	return w.VirtualAttributes.Valid;
+}
+
+
 void routine() {
-	HANDLE handle = GetCurrentProcess();
-	PROCESS_MEMORY_COUNTERS mem = { 0 };
 
 	//Suspend all threads so we can make sure we are the only thread that can cause a page fault.
-	DoSuspendThread(GetCurrentProcessId(), thread_id, 1);
+	suspendThread(GetCurrentProcessId(), thread_id, 1);
 
 	//Empty all loaded pages in memory. Some pages will directly be loaded into memory again like .text section but the important 
 	//part is that we dont access any variable inside .data section. Like thread_id.
 	K32EmptyWorkingSet(GetCurrentProcess());
 
-	for (int i = 0; i < 100000000000000; i++) {//xd
+	//Dont touch any .data varibalbe here
+	while(1) {
 
-		//store the base address the loaded Module
-		char* dllImageBase = (char*)GetModuleHandleA(NULL); //suppose hModule is the handle to the loaded Module (.exe or .dll)
+		char* base = (char*)GetModuleHandleA(NULL);
 
-		//get the address of NT Header
-		auto dos = (PIMAGE_DOS_HEADER)dllImageBase;
+		auto dos = (PIMAGE_DOS_HEADER)base;
 		if (dos->e_magic != IMAGE_DOS_SIGNATURE) return;
-		auto nt = (PIMAGE_NT_HEADERS)((BYTE*)dllImageBase + dos->e_lfanew);
+		auto nt = (PIMAGE_NT_HEADERS)((BYTE*)base + dos->e_lfanew);
 		if (nt->Signature != IMAGE_NT_SIGNATURE) return;
 
 		auto section_header = (PIMAGE_SECTION_HEADER)((BYTE*)(&nt->FileHeader) + sizeof(IMAGE_FILE_HEADER) + nt->FileHeader.SizeOfOptionalHeader);
 
-		for (auto j = 0; j < nt->FileHeader.NumberOfSections; j++, section_header++) {
-			if ((section_header->Characteristics & IMAGE_SCN_MEM_DISCARDABLE)) continue;
-			//if (execute_only) {
-			//	if (!(section_header->Characteristics & IMAGE_SCN_CNT_CODE)) continue;
-			//}
+		for (auto j = 0; j < nt->FileHeader.NumberOfSections; j++, section_header++) {	
 			if (!strcmp((const char*)section_header->Name, ".data")) {
-				PSAPI_WORKING_SET_EX_INFORMATION working = { 0 };
-				working.VirtualAddress = (PVOID)((ULONGLONG)dllImageBase + section_header->VirtualAddress);
-				K32QueryWorkingSetEx(GetCurrentProcess(), &working, sizeof(working));
-				if (working.VirtualAttributes.Valid) {
-					std::cout << "Someone acceseed the page that was not the current process :D" << std::endl;
+				if (isVAReadable((PVOID)((ULONGLONG)base + section_header->VirtualAddress))) {
+					std::cout << "Someone acceseed the page" << std::endl;
+					goto End;
 				}
-				//std::cout << working.VirtualAttributes.Valid << std::endl;
 			}
-
 		}
-
-
 	}
-	DoSuspendThread(GetCurrentProcessId(), thread_id, 0);
+
+End:
+	suspendThread(GetCurrentProcessId(), thread_id, 0);
 
 
 }
 
-//https://learn.microsoft.com/en-us/windows/win32/api/psapi/nf-psapi-queryworkingsetex could be used instead. To check valid bit. Much more relaible.
-// But i started with this approch i might update this with queryworkingsetex intead.
-// 
-//How to detect all cs2 anti cheats 101
-void main() {
+//How to detect all cs2 cheats 101
+void main(void) {
 
 	//Start a thread to isolate the execution.
 	std::thread s(&routine);
@@ -93,5 +89,5 @@ void main() {
 	ss << s.get_id();
 	thread_id = std::stoi(ss.str());
 	s.join();
-
+	while (1) {}
 }

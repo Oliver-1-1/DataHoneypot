@@ -89,5 +89,5 @@ void main(void) {
 	ss << s.get_id();
 	thread_id = std::stoi(ss.str());
 	s.join();
-	while (1) {}
+
 }

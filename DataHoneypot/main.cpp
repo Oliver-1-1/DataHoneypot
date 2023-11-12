@@ -10,7 +10,7 @@
 
 DWORD thread_id = 0;
 
-void suspendThread(DWORD targetProcessId, DWORD targetThreadId, BOOL suspend) {
+void suspendThread(DWORD targetProcessId, DWORD targetThreadId, bool suspend) {
 	HANDLE h = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
 	if (h != INVALID_HANDLE_VALUE) {
 		THREADENTRY32 te;
@@ -53,7 +53,7 @@ void routine() {
 	K32EmptyWorkingSet(GetCurrentProcess());
 
 	//Dont touch any .data varibalbe here
-	while(1) {
+	while (1) {
 
 		char* base = (char*)GetModuleHandleA(NULL);
 
@@ -64,7 +64,7 @@ void routine() {
 
 		auto section_header = (PIMAGE_SECTION_HEADER)((BYTE*)(&nt->FileHeader) + sizeof(IMAGE_FILE_HEADER) + nt->FileHeader.SizeOfOptionalHeader);
 
-		for (auto j = 0; j < nt->FileHeader.NumberOfSections; j++, section_header++) {	
+		for (auto j = 0; j < nt->FileHeader.NumberOfSections; j++, section_header++) {
 			if (!strcmp((const char*)section_header->Name, ".data")) {
 				if (isVAReadable((PVOID)((ULONGLONG)base + section_header->VirtualAddress))) {
 					std::cout << "Someone acceseed the page" << std::endl;
@@ -77,17 +77,16 @@ void routine() {
 End:
 	suspendThread(GetCurrentProcessId(), thread_id, 0);
 
-
 }
 
 //How to detect all cs2 cheats 101
-void main(void) {
-
+void main() {
 	//Start a thread to isolate the execution.
 	std::thread s(&routine);
 	std::stringstream ss;
 	ss << s.get_id();
 	thread_id = std::stoi(ss.str());
 	s.join();
+	while (1) {}
 
 }

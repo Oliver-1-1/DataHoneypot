@@ -52,7 +52,7 @@ void routine() {
 	//part is that we dont access any variable inside .data section. Like thread_id.
 	K32EmptyWorkingSet(GetCurrentProcess());
 
-	//Dont touch any .data varibalbe here
+	//Dont touch any .data variable here
 	while (1) {
 
 		char* base = (char*)GetModuleHandleA(NULL);
@@ -67,7 +67,7 @@ void routine() {
 		for (auto j = 0; j < nt->FileHeader.NumberOfSections; j++, section_header++) {
 			if (!strcmp((const char*)section_header->Name, ".data")) {
 				if (isVAReadable((PVOID)((ULONGLONG)base + section_header->VirtualAddress))) {
-					std::cout << "Someone acceseed the page" << std::endl;
+					std::cout << "Someone accessed the page" << std::endl;
 					goto End;
 				}
 			}

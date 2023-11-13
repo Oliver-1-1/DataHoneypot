@@ -34,6 +34,7 @@ void suspendThread(DWORD targetProcessId, DWORD targetThreadId, bool suspend) {
 	}
 }
 
+//If you are not in the process use OpenProcess with PROCESS_QUERY_INFORMATION.
 bool isVAReadable(PVOID virtualAddress) {
 	PSAPI_WORKING_SET_EX_INFORMATION w = { 0 };
 	w.VirtualAddress = virtualAddress;

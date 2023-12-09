@@ -8,9 +8,16 @@
 #include <libloaderapi.h>
 #pragma comment(lib,"ntdll.lib")
 
+#define PAGE_SIZE  0x1000
+#define PAGE_MASK  0xFFF
+#define PAGE_SHIFT 12
+#define SIZE_TO_PAGES(Size)  (((Size) >> PAGE_SHIFT) + (((Size) & PAGE_MASK) ? 1 : 0))
+#define PAGES_TO_SIZE(Pages) ((Pages) << PAGE_SIZE)
+
 DWORD thread_id = 0;
 
 void suspendThread(DWORD targetProcessId, DWORD targetThreadId, bool suspend) {
+	
 	HANDLE h = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
 	if (h != INVALID_HANDLE_VALUE) {
 		THREADENTRY32 te;
@@ -66,10 +73,13 @@ void routine() {
 
 		for (auto j = 0; j < nt->FileHeader.NumberOfSections; j++, section_header++) {
 			if (!strcmp((const char*)section_header->Name, ".data")) {
-				if (isVAReadable((PVOID)((ULONGLONG)base + section_header->VirtualAddress))) {
-					std::cout << "Someone acceseed the page" << std::endl;
-					goto End;
+				for (int k = 0; k < SIZE_TO_PAGES(section_header->SizeOfRawData); k++) {
+					if (isVAReadable((PVOID)((ULONGLONG)base + section_header->VirtualAddress + k*PAGE_SIZE))) {
+						std::cout << "Someone acceseed the page" << std::endl;
+						goto End;
+					}
 				}
+	
 			}
 		}
 	}

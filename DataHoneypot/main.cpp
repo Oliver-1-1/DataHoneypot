@@ -41,6 +41,7 @@ void suspendThread(DWORD targetProcessId, DWORD targetThreadId, bool suspend) {
 	}
 }
 
+//If you are not in the process use OpenProcess with PROCESS_QUERY_INFORMATION.
 bool isVAReadable(PVOID virtualAddress) {
 	PSAPI_WORKING_SET_EX_INFORMATION w = { 0 };
 	w.VirtualAddress = virtualAddress;
@@ -59,7 +60,7 @@ void routine() {
 	//part is that we dont access any variable inside .data section. Like thread_id.
 	K32EmptyWorkingSet(GetCurrentProcess());
 
-	//Dont touch any .data varibalbe here
+	//Dont touch any .data variable here
 	while (1) {
 
 		char* base = (char*)GetModuleHandleA(NULL);

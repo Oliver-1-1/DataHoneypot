@@ -90,7 +90,6 @@ End:
 
 }
 
-//How to detect all cs2 cheats 101
 void main() {
 	//Start a thread to isolate the execution.
 	std::thread s(&routine);
